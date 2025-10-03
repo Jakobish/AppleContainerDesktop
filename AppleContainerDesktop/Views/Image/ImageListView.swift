@@ -268,21 +268,26 @@ struct ImageListView: View {
             })
         })
         .sheet(isPresented: $showPullRemoteView, content: {
-            AddRemoteImageView(onConfirm: { reference in
+            AddRemoteImageView(onPullImageFinish: {
                 Task {
-                    self.showPullRemoteView = false
-                    self.applicationManager.showProgressView = true
-                    do {
-                        try await ImageService.pullImage(reference: reference, messageStreamContinuation: self.applicationManager.messageStreamContinuation)
-                        
-                        await self.listImages()
-                        self.applicationManager.showProgressView = false
-                    } catch(let error) {
-                        applicationManager.error = error
-
-                    }
+                    await self.listImages()
                 }
             })
+//            AddRemoteImageView(onConfirm: { reference in
+//                Task {
+//                    self.showPullRemoteView = false
+//                    self.applicationManager.showProgressView = true
+//                    do {
+//                        try await ImageService.pullImage(reference: reference, messageStreamContinuation: self.applicationManager.messageStreamContinuation)
+//                        
+//                        await self.listImages()
+//                        self.applicationManager.showProgressView = false
+//                    } catch(let error) {
+//                        applicationManager.error = error
+//
+//                    }
+//                }
+//            })
         })
         .sheet(isPresented: $showBuildImageView, content: {
             BuildImageView(onCreationFinish: {

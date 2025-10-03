@@ -34,17 +34,18 @@ class ImageService {
     static func pullImage(
         reference: String,
         platform: Platform = .current,
-        scheme: String = RequestScheme.auto.rawValue,
+        scheme: RequestScheme = RequestScheme.auto,
         messageStreamContinuation: AsyncStream<String>.Continuation?
     ) async throws {
         
-        let scheme = try RequestScheme(scheme)
-
         let processedReference = try ClientImage.normalizeReference(reference)
 
         messageStreamContinuation?.yield("Fetching image...")
         let image = try await ClientImage.pull(
-            reference: processedReference, platform: platform, scheme: scheme, progressUpdate: { events in
+            reference: processedReference,
+            platform: platform,
+            scheme: scheme,
+            progressUpdate: { events in
                 Utility.updateProgress(events, messageStreamContinuation: messageStreamContinuation)
             }
         )
