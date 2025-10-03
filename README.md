@@ -4,6 +4,9 @@
 A GUI for [Apple container](https://github.com/apple/container), 
 a tool that we can use to create and run Linux containers as lightweight virtual machines on Mac.
 
+> [!IMPORTANT]
+> The newest version if for container [0.5.0](https://github.com/apple/container/releases/tag/0.5.0) which contains some breaking changes. Please make sure to download the newest binary release for apple container in the [release page](https://github.com/apple/container/releases/tag/0.5.0).
+
 
 ## Perquisite
 This app will not automatically download `container` so please make sure to install it either from the [GitHub](https://github.com/apple/container) or by running `brew install --cask container`.

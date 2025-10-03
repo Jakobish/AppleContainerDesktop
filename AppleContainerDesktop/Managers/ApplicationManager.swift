@@ -6,6 +6,7 @@
 //
 
 import SwiftUI
+internal import Logging
 
 enum DisplayCategory: String, Identifiable, Equatable {
     case container
@@ -42,6 +43,19 @@ enum DisplayCategory: String, Identifiable, Equatable {
 @Observable
 class ApplicationManager {
     static let containerGithub: URL? = URL(string: "https://github.com/apple/container")
+
+    
+    static var logger: Logger {
+        LoggingSystem.bootstrap(StreamLogHandler.standardError)
+        var logger = Logger(label: "itsuki.enjoy.AppleContainerDesktop")
+        #if DEBUG
+        logger.logLevel = .info
+        #else
+        logger.logLevel = .error
+        #endif
+
+        return logger
+    }
     
     var error: Error? {
         didSet {

@@ -9,7 +9,7 @@
 import Foundation
 
 struct InstallRoot {
-     static let environmentName = "CONTAINER_INSTALL_ROOT"
+    static let environmentName = "CONTAINER_INSTALL_ROOT"
 
     private static let envPath = ProcessInfo.processInfo.environment[Self.environmentName]
 

@@ -92,8 +92,8 @@ class ContainerService {
                 return
             }
 
-            exitCode = try await Utility.handleProcess(io: io, process: process)
-        } catch(let error) {            
+            exitCode = try await io.handleProcess(process: process, log: ApplicationManager.logger)
+        } catch(let error) {
             try? await container.stop()
 
             if error is ContainerizationError {

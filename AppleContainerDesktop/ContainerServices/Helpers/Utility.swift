@@ -227,69 +227,6 @@ struct Utility {
         }
         return try await ClientKernel.getDefaultKernel(for: s)
     }
-
-
-    static func handleProcess(io: ProcessIO, process: ClientProcess) async throws -> Int32 {
-        let signals = AsyncSignalHandler.create(notify: signalSet)
-        return try await withThrowingTaskGroup(of: Int32?.self, returning: Int32.self) { group in
-            let waitAdded = group.addTaskUnlessCancelled {
-                let code = try await process.wait()
-                try await io.wait()
-                return code
-            }
-
-            guard waitAdded else {
-                group.cancelAll()
-                return -1
-            }
-
-            try await process.start()
-            try io.closeAfterStart()
-
-            if let current = io.console {
-                let size = try current.size
-                // It's supremely possible the process could've exited already. We shouldn't treat
-                // this as fatal.
-                try? await process.resize(size)
-                _ = group.addTaskUnlessCancelled {
-                    let winchHandler = AsyncSignalHandler.create(notify: [SIGWINCH])
-                    for await _ in winchHandler.signals {
-                        do {
-                            try await process.resize(try current.size)
-                        } catch(let error) {
-                            print("failed to send terminal resize event. \(error)")
-                        }
-                    }
-                    return nil
-                }
-            } else {
-                _ = group.addTaskUnlessCancelled {
-                    for await sig in signals.signals {
-                        do {
-                            try await process.kill(sig)
-                        } catch(let error) {
-                            print("failed to send signal. signal: \(sig). Error: \(error)")
-                        }
-                    }
-                    return nil
-                }
-            }
-
-            while true {
-                let result = try await group.next()
-                if result == nil {
-                    return -1
-                }
-                let status = result!
-                if let status {
-                    group.cancelAll()
-                    return status
-                }
-            }
-            return -1
-        }
-    }
-    
     
     static func parseProcessConfiguration(
         arguments: [String],
