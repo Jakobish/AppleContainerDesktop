@@ -39,7 +39,7 @@ After system started correctly, we can then interact with the images and contain
 - Inspect some basic Image information such as container using the image, OS, Arch, and etc.
 
 #### Pull Remote
-![](./ReadmeAssets/Image/pullImage.gif)  
+![](./ReadmeAssets/Image/pullImage.png)  
 
 #### Build From Dockerfile
 ![](./ReadmeAssets/Image/buildImage.png)  
