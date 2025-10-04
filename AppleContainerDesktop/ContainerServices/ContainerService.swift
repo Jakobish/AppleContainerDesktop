@@ -30,6 +30,8 @@ class ContainerService {
         let id = Utility.createContainerID(name: management.name)
         try Utility.validEntityName(id)
 
+        messageStreamContinuation?.yield("Creating Container: \(id)...")
+
         let (configuration, kernel) = try await Utility.createContainerConfig(
             imageReference: imageReference,
             arguments: arguments.stringArray,
@@ -66,6 +68,8 @@ class ContainerService {
         
     // attachContainerStdIn: true for interactive
     static func startContainer(_ container: ClientContainer, attachContainerStdout: Bool, attachContainerStdIn: Bool, messageStreamContinuation: AsyncStream<String>.Continuation?) async throws {
+
+        messageStreamContinuation?.yield("Starting Container: \(container.id)...")
 
         var exitCode: Int32 = 127
 
@@ -144,6 +148,8 @@ class ContainerService {
         stopTimeoutSeconds: Int32,
         messageStreamContinuation: AsyncStream<String>.Continuation?
     ) async throws {
+        messageStreamContinuation?.yield("Stopping \(containers.count) Container(s)...")
+
         let signal = try Signals.parseSignal("SIGTERM")
         let stopOptions = ContainerStopOptions(
             timeoutInSeconds: stopTimeoutSeconds,
@@ -183,6 +189,9 @@ class ContainerService {
     }
     
     static func deleteContainers(_ containers: [ClientContainer], force: Bool, messageStreamContinuation: AsyncStream<String>.Continuation?) async throws {
+
+        messageStreamContinuation?.yield("Deleting \(containers.count) Container(s)...")
+
         var failed: [(String, Error)] = []
         try await withThrowingTaskGroup(of: (String, Error)?.self) { group in
             for container in containers {

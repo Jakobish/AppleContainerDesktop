@@ -12,15 +12,13 @@ import ContainerClient
 struct AddRemoteImageView: View {
     @Environment(ApplicationManager.self) private var applicationManager
     @Environment(\.dismiss) private var dismiss
-    
-    var onPullImageFinish: () -> Void
-    
-    @SwiftUI.State private var text: String = ""
+        
+    @SwiftUI.State private var imageReference: String = ""
     @SwiftUI.State private var errorMessage: String?
     
     @SwiftUI.State private var showProgressView: Bool = false
     
-    @SwiftUI.State private var showAdditionalSettings: Bool = true
+    @SwiftUI.State private var showAdditionalSettings: Bool = false
     
     @SwiftUI.State private var platformString: String = Platform.current.description
     @SwiftUI.State private var requestScheme: RequestScheme = .auto
@@ -28,33 +26,30 @@ struct AddRemoteImageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
-            VStack(alignment: .leading) {
+            VStack(alignment: .leading, spacing: 8) {
                 Text("Pull Remote Image")
                     .font(.headline)
-                
-                Text("Please Enter the image reference. For example: \n1. `alpine:latest` \n2. `docker.io/exampleuser/demo:latest` ")
-                    .font(.subheadline)
-                    .multilineTextAlignment(.leading)
-                    .foregroundStyle(.secondary)
 
-            }
-                        
-            VStack(alignment: .leading) {
-                TextField("", text: $text)
-                
-                if let errorMessages = self.errorMessage {
-                    Text(errorMessages)
+                if let errorMessage = self.errorMessage {
+                    Text(errorMessage)
                         .font(.subheadline)
                         .foregroundStyle(.red)
 
                 }
+            }
 
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Image Reference")
+                Text("Ex: `alpine:latest` or `docker.io/exampleuser/demo:latest`")
+                    .font(.subheadline)
+                    .multilineTextAlignment(.leading)
+                    .foregroundStyle(.secondary)
+                TextField("", text: $imageReference)
             }
             
             Divider()
             
             
-            // TODO: add more configurations
             Button(action: {
                 showAdditionalSettings.toggle()
             }, label: {
@@ -73,8 +68,7 @@ struct AddRemoteImageView: View {
             if showAdditionalSettings {
                 VStack(alignment: .leading, spacing: 8) {
                     Text("Platform")
-                    Text("⭑ The value takes the form of os/arch or os/arch/variant, ex: `linux/amd64` or `linux/arm/v7`.")
-                        .lineLimit(1)
+                    Text("⭑ The value takes the form of os/arch or os/arch/variant. \n    ex: `linux/amd64` or `linux/arm/v7`.")
                         .font(.subheadline)
                         .foregroundStyle(.secondary)
 
@@ -111,7 +105,7 @@ struct AddRemoteImageView: View {
                 .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .secondary))
                 
                 Button(action: {
-                    let trimmedReference = text.trimmingCharacters(in: .whitespacesAndNewlines)
+                    let trimmedReference = imageReference.trimmingCharacters(in: .whitespacesAndNewlines)
                     guard !trimmedReference.isEmpty else {
                         self.errorMessage = "Image reference cannot be empty."
                         return
@@ -131,7 +125,6 @@ struct AddRemoteImageView: View {
                                     self.applicationManager.messageStreamContinuation
                             )
 
-                            self.onPullImageFinish()
                             self.dismiss()
 
                         } catch (let error) {

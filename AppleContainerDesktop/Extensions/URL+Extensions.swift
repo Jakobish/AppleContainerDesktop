@@ -17,4 +17,9 @@ extension URL {
     var parentDirectory: URL {
         return self.appending(component: "..").standardized
     }
+    
+    nonisolated
+    var isDirectory: Bool {
+        (try? self.resourceValues(forKeys: [.isDirectoryKey]).isDirectory) ?? false
+    }
 }

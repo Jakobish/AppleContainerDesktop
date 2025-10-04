@@ -38,6 +38,8 @@ class SystemService {
         timeoutSeconds: Int32,
         messageStreamContinuation: AsyncStream<String>.Continuation?
     ) async throws {
+        
+        messageStreamContinuation?.yield("Starting System...")
 
         let installRootDefaultURL: URL = InstallRoot(executablePathUrl).defaultURL
         
@@ -116,7 +118,7 @@ class SystemService {
         let launchdDomainString = try ServiceManager.getDomainString()
         let fullLabel = "\(launchdDomainString)/\(launchPrefix)apiserver"
 
-        messageStreamContinuation?.yield("stopping containers...")
+        messageStreamContinuation?.yield("Stopping containers...")
         
         do {
             let containers = try await ClientContainer.list()

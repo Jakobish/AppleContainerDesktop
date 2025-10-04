@@ -82,7 +82,8 @@ class ImageService {
         cacheOut: [String] = [],
         messageStreamContinuation: AsyncStream<String>.Continuation?
     ) async throws {
-        
+        messageStreamContinuation?.yield("Building image...")
+
         let tag = tag.isEmpty ? UUID().uuidString.lowercased() : tag
         
         try await BuilderService.startBuilder(cpus: cpus, memory: memory, messageStreamContinuation: messageStreamContinuation)
@@ -179,7 +180,6 @@ class ImageService {
             cacheIn: cacheIn,
             cacheOut: cacheOut
         )
-        
         messageStreamContinuation?.yield("Building Image...")
 
         try await builder.build(config)
@@ -188,6 +188,7 @@ class ImageService {
 
         // Currently, only a single export can be specified.
         for exp in exports {
+            messageStreamContinuation?.yield("processing export \(exp.type)")
             switch exp.type {
             case BuildImageOutputConfiguration.BuildType.oci.rawValue:
                 try Task.checkCancellation()
@@ -201,6 +202,7 @@ class ImageService {
                         Utility.updateProgress(events, messageStreamContinuation: messageStreamContinuation)
                     })
                 }
+                
             case BuildImageOutputConfiguration.BuildType.tar.rawValue:
                 guard let dest = exp.destination else {
                     throw ContainerizationError(.invalidArgument, message: "destination is required.")
@@ -208,6 +210,7 @@ class ImageService {
                 let tarURL = tempURL.appendingPathComponent("out.tar")
                 try FileManager.default.moveItem(at: tarURL, to: dest)
                 finalMessage = "Successfully exported to \(dest.absolutePath)"
+                
             case BuildImageOutputConfiguration.BuildType.local.rawValue:
                 guard let dest = exp.destination else {
                     throw ContainerizationError(.invalidArgument, message: "destination is required.")
@@ -228,8 +231,47 @@ class ImageService {
 
     }
     
+    static func saveImages(
+        _ images: [ClientImage],
+        platform: Platform = .current,
+        outputDirectory: URL,
+        messageStreamContinuation: AsyncStream<String>.Continuation?
+    ) async throws {
+        messageStreamContinuation?.yield("Saving \(images.count) Image(s)...")
+
+        let references: [String] = images.map(\.reference)
+        let outputPath = outputDirectory.appending(path: "\(Date().ISO8601Format()).tar").absolutePath
+        try await ClientImage.save(references: references, out: outputPath, platform: platform)
+        
+        messageStreamContinuation?.yield("Saved \(images.count) Image(s)...")
+    }
+    
+    
+    static func loadImages(tar: URL, messageStreamContinuation: AsyncStream<String>.Continuation?) async throws {
+        let path = tar.absolutePath
+        
+        guard FileManager.default.fileExists(atPath: path) else {
+            throw ContainerizationError(.invalidArgument, message: "File Does not exist.")
+        }
+        
+        messageStreamContinuation?.yield("Loading image from \(tar.lastPathComponent.isEmpty ? path : tar.lastPathComponent)...")
+        
+        let loaded = try await ClientImage.load(from: path)
+        
+        messageStreamContinuation?.yield("Unpacking Images")
+
+        for image in loaded {
+            try await image.unpack(platform: nil, progressUpdate: { events in
+                Utility.updateProgress(events, messageStreamContinuation: messageStreamContinuation)
+            })
+        }
+
+    }
+    
     
     static func deleteImages(_ images: [ClientImage], messageStreamContinuation: AsyncStream<String>.Continuation?) async throws {
+        messageStreamContinuation?.yield("Deleting \(images.count) image(s)...")
+
         var failed: [(String, Error)] = []
         var didDeleteAnyImage: Bool = false
         for image in images {
@@ -299,11 +341,24 @@ struct BuildImageOutputConfiguration {
     var type: BuildType
     
     // required for local and tar
-    // for OCi, will use a temporary URL sepecific for the build
-    var destination: URL?
+    // for OCi, will use a temporary URL specific for the build
+    var destinationDirectory: URL?
+    
+    private var destination: URL? {
+        switch self.type {
+        case .local:
+            destinationDirectory?.appending(path: "\(Date().ISO8601Format()).tar")
+        case .tar:
+            destinationDirectory?.appending(path: "\(Date().ISO8601Format()).tar")
+        case .oci:
+            // specifying oci output destination while building will result in failure.
+            // Error: unknown: "Error Domain=NSCocoaErrorDomain Code=4 "The file “dest” doesn’t exist." UserInfo={NSFilePath=/Users/.../dest, NSUnderlyingError=0x81fc32b80 {Error Domain=NSPOSIXErrorDomain Code=2 "No such file or directory"}}"
+            nil
+        }
+    }
     
     var additionalFields: [KeyValueModel]
-    
+
     var buildExport: Builder.BuildExport {
         var rawInput = Utility.keyValueString(key: "type", value: type.rawValue)
         if let destination {
@@ -316,32 +371,29 @@ struct BuildImageOutputConfiguration {
         return .init(type: type.rawValue, destination: destination, additionalFields: additionalFields.dictRepresentation, rawValue: rawInput)
     }
     
-    
-    // TODO: Add validation on URL
     func verify() throws {
-//            let destination = URL(fileURLWithPath: dest)
-//            let fileManager = FileManager.default
-//
-//            if fileManager.fileExists(atPath: destination.path) {
-//                let resourceValues = try destination.resourceValues(forKeys: [.isDirectoryKey])
-//                let isDir = resourceValues.isDirectory
-//                if isDir != nil && isDir == false {
-//                    throw Builder.Error.invalidExport(dest, "dest path already exists")
-//                }
-//
-//                var finalDestination = destination.appendingPathComponent("out.tar")
-//                var index = 1
-//                while fileManager.fileExists(atPath: finalDestination.path) {
-//                    let path = "out.tar.\(index)"
-//                    finalDestination = destination.appendingPathComponent(path)
-//                    index += 1
-//                }
-//                return finalDestination
-//            } else {
-//                let parentDirectory = destination.deletingLastPathComponent()
-//                try? fileManager.createDirectory(at: parentDirectory, withIntermediateDirectories: true, attributes: nil)
-//            }
+        guard let destinationDirectory = self.destinationDirectory else {
+            if self.type == .oci {
+                return
+            }
+            
+            throw ContainerizationError(.invalidArgument, message: "Destination required for output type \(self.type.rawValue)")
+        }
+        
+        if self.type == .oci {
+            throw ContainerizationError(.invalidArgument, message: "Destination cannot be specified for OCI.")
 
+        }
+        
+        let fileManager = FileManager.default
+        
+        guard fileManager.fileExists(atPath: destinationDirectory.absolutePath) else {
+            throw ContainerizationError(.invalidArgument, message: "Destination directory does not exist.")
+        }
+        
+        if !destinationDirectory.isDirectory {
+            throw ContainerizationError(.invalidArgument, message: "Specified Destination is not a directory.")
+        }
     }
 
 }

@@ -15,8 +15,6 @@ struct BuildImageView: View {
     @Environment(ApplicationManager.self) private var applicationManager
     @Environment(\.dismiss) private var dismiss
     
-    var onCreationFinish: () -> Void
-
     @SwiftUI.State private var errorMessage: String?
     
     // use a different one then applicationManager.showProgressView to show the progress view over this sheet
@@ -45,7 +43,7 @@ struct BuildImageView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 24) {
-                VStack(alignment: .leading) {
+                VStack(alignment: .leading, spacing: 8) {
                     Text("Build Image From Dockerfile")
                         .font(.headline)
                                         
@@ -117,8 +115,7 @@ struct BuildImageView: View {
                 if showAdditionalSettings {
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Platforms")
-                        Text("⭑ Comma separated string, ex: `linux/amd64,linux/arm64,linux/arm/v7`.")
-                            .lineLimit(1)
+                        Text("⭑ Comma separated string. \n    ex: `linux/amd64,linux/arm64,linux/arm/v7`.")
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -143,7 +140,6 @@ struct BuildImageView: View {
                         }
                         
                         Text("⭑ Anything with empty key will be removed when creating.")
-                            .lineLimit(1)
                             .font(.subheadline)
                             .foregroundStyle(.secondary)
 
@@ -233,8 +229,7 @@ struct BuildImageView: View {
                                     cacheOut: [],
                                     messageStreamContinuation: self.applicationManager.messageStreamContinuation
                                 )
-
-                                self.onCreationFinish()
+                                
                                 self.dismiss()
                                 
                             } catch (let error) {

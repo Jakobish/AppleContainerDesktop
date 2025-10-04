@@ -305,12 +305,12 @@ struct ContainerListView: View {
                 self.applicationManager.refreshContainerNeeded = false
             }
         })
-        .sheet(isPresented: $showCreateContainerView, content: {
-            CreateContainerView(imageReference: "", onCreationFinish: {
-                Task {
-                    await self.listContainers()
-                }
-            })
+        .sheet(isPresented: $showCreateContainerView, onDismiss: {
+            Task {
+                await self.listContainers()
+            }
+        }, content: {
+            CreateContainerView(imageReference: "")
         })
         
     }

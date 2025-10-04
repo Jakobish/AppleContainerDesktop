@@ -28,6 +28,10 @@ struct ImageListView: View {
 
     @State private var showPullRemoteView: Bool = false
     @State private var showBuildImageView: Bool = false
+    @State private var showLoadImageView: Bool = false
+
+    @State private var showSaveImageView: Bool = false
+    @State private var imagesToSave: String =  ""
 
     private var trimmedText: String {
         self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -65,6 +69,12 @@ struct ImageListView: View {
                             self.showBuildImageView = true
                         }, label: {
                             Text("Build From Dockerfile")
+                        })
+                        
+                        Button(action: {
+                            self.showLoadImageView = true
+                        }, label: {
+                            Text("Load From Tar")
                         })
                         
                     }, label: {
@@ -124,6 +134,15 @@ struct ImageListView: View {
                         })
                         .disabled(!allDeletable)
                         .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .red, disabled: !allDeletable))
+                        
+                        Button(action: {
+                            self.imagesToSave = selectedImages.map(\.image.reference).joined(separator: ",")
+                            self.showSaveImageView = true
+                        }, label: {
+                            Text("Save")
+                                .padding(.horizontal, 2)
+                        })
+                        .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .blue))
                     }
                 }                
             }
@@ -199,6 +218,15 @@ struct ImageListView: View {
 
                     HStack(spacing: 12) {
                         Button(action: {
+                            self.imagesToSave = image.image.reference
+                            self.showSaveImageView = true
+                        }, label: {
+                            TableHelper.actionImage(systemName: "folder.fill")
+                        })
+                        .buttonStyle(CustomButtonStyle(backgroundShape: .circle, backgroundColor: .blue))
+
+                        
+                        Button(action: {
                             self.createContainerForImage = image
                         }, label: {
                             TableHelper.actionImage(systemName: "cube.fill")
@@ -231,7 +259,7 @@ struct ImageListView: View {
                     }
                     .padding(.horizontal, 8)
                 }
-                .width(92)
+                .width(128)
                 
 
             }, rows: {
@@ -260,41 +288,33 @@ struct ImageListView: View {
                 await self.listImages()
             }
         })
-        .sheet(item: $createContainerForImage, content: { image in
-            CreateContainerView(imageReference: image.image.reference, onCreationFinish: {
-                Task {
-                    await self.listImages()
-                }
-            })
+        .sheet(item: $createContainerForImage, onDismiss: {
+            Task {
+                await self.listImages()
+            }
+        }, content: { image in
+            CreateContainerView(imageReference: image.image.reference)
         })
-        .sheet(isPresented: $showPullRemoteView, content: {
-            AddRemoteImageView(onPullImageFinish: {
-                Task {
-                    await self.listImages()
-                }
-            })
-//            AddRemoteImageView(onConfirm: { reference in
-//                Task {
-//                    self.showPullRemoteView = false
-//                    self.applicationManager.showProgressView = true
-//                    do {
-//                        try await ImageService.pullImage(reference: reference, messageStreamContinuation: self.applicationManager.messageStreamContinuation)
-//                        
-//                        await self.listImages()
-//                        self.applicationManager.showProgressView = false
-//                    } catch(let error) {
-//                        applicationManager.error = error
-//
-//                    }
-//                }
-//            })
+        .sheet(isPresented: $showPullRemoteView, onDismiss: {
+            Task {
+                await self.listImages()
+            }
+        },  content: {
+            AddRemoteImageView()
         })
-        .sheet(isPresented: $showBuildImageView, content: {
-            BuildImageView(onCreationFinish: {
-                Task {
-                    await self.listImages()
-                }
-            })
+        .sheet(isPresented: $showBuildImageView, onDismiss: {
+            Task {
+                await self.listImages()
+            }
+        },  content: {
+            BuildImageView()
+        })
+        .sheet(isPresented: $showLoadImageView, onDismiss: {
+            Task {
+                await self.listImages()
+            }
+        }, content: {
+            LoadImageView()
         })
         .sheet(item: $showInUseContainerForImage, onDismiss: {
             Task {
@@ -303,6 +323,12 @@ struct ImageListView: View {
         }, content: { image in
             InUseContainersView(image: $showInUseContainerForImage)
         })
+        .sheet(isPresented: $showSaveImageView, onDismiss: {
+            self.imagesToSave = ""
+        }, content: {
+            SaveImageView(images: self.images.map(\.image), imageReferences: $imagesToSave)
+        })
+        
     }
 
         

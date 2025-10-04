@@ -33,6 +33,8 @@ After system started correctly, we can then interact with the images and contain
 ### Images
 - Pull Remote Image
 - Build Image from Dockerfile
+- Save Image(s) as OCI compatible tar archive
+- Load Image(s) from OCI compatible tar archive
 - Delete Image
 - Inspect some basic Image information such as container using the image, OS, Arch, and etc.
 
@@ -41,6 +43,12 @@ After system started correctly, we can then interact with the images and contain
 
 #### Build From Dockerfile
 ![](./ReadmeAssets/Image/buildImage.png)  
+
+#### Save Images
+![](./ReadmeAssets/Image/saveImage.gif)  
+
+#### Load Images
+![](./ReadmeAssets/Image/loadImage.gif)  
 
 
 ### Containers

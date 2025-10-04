@@ -28,7 +28,6 @@ struct CreateContainerView: View {
     @Environment(\.dismiss) private var dismiss
     
     @SwiftUI.State var imageReference: String
-    var onCreationFinish: () -> Void
     
     @SwiftUI.State private var process: ContainerProcess = .init()
     
@@ -270,7 +269,7 @@ struct CreateContainerView: View {
                                     registryScheme: self.registryScheme,
                                     messageStreamContinuation: self.applicationManager.messageStreamContinuation
                                 )
-                                self.onCreationFinish()
+
                                 self.dismiss()
                                 
                             } catch (let error) {
@@ -302,9 +301,8 @@ struct CreateContainerView: View {
                 .environment(self.applicationManager)
         })
         .sheet(isPresented: $showPickLocalImage, content: {
-            LocalImagePickingView(images: $localImages, imageReference: $imageReference)
-                .interactiveDismissDisabled(false)
-
+//            LocalImagePickingView(images: localImages, imageReference: $imageReference)
+            LocalImagePickingView(images: localImages, onImageSelect: {self.imageReference = $0})
         })
         .animation(.default, value: self.ports.count)
         .animation(.default, value: self.environments.count)
@@ -319,71 +317,6 @@ struct CreateContainerView: View {
 
 
 
-private struct LocalImagePickingView: View {
-    @Binding var images: [ClientImage]
-    @Binding var imageReference: String
-    
-    @SwiftUI.State private var searchText: String = ""
-    
-    @Environment(\.dismiss) private var dismiss
-
-    private var trimmedText: String {
-        self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-    
-    private var filteredImages: [ClientImage] {
-        if trimmedText.isEmpty {
-            return images
-        }
-        let filtered = self.images.filter({
-            $0.reference.contains(trimmedText) ||
-            $0.description.name.contains(trimmedText)
-        })
-        
-        return filtered
-    }
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            SearchBox(text: $searchText)
-
-            
-            List {
-                ForEach(filteredImages, id: \.digest) { image in
-                    Button(action: {
-                        imageReference = image.reference
-                        self.dismiss()
-                    }, label: {
-                        Text(image.reference)
-                            .padding(.vertical, 8)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                    })
-
-                }
-            }
-            .buttonStyle(.plain)
-            .listStyle(.inset)
-            .clipShape(RoundedRectangle(cornerRadius: 4))
-            .background(RoundedRectangle(cornerRadius: 4).fill(.clear).stroke(.secondary, style: .init(lineWidth: 1)))
-            
-            Button(action: {
-                self.dismiss()
-            }, label: {
-                Text("Cancel")
-                    .padding(.horizontal, 2)
-            })
-            .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .secondary))
-            .frame(maxWidth: .infinity, alignment: .trailing)
-        
-            
-        }
-        .multilineTextAlignment(.leading)
-        .padding(.all, 24)
-        .frame(width: 440, height: 400)
-
-    }
-}
 
 
 
