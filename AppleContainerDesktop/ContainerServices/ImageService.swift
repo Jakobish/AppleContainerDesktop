@@ -173,7 +173,7 @@ class ImageService {
             noCache: noCache,
             platforms: [Platform](platforms),
             terminal: nil,
-            tag: imageName,
+            tags: [imageName],
             target: targetStage,
             quiet: quiet,
             exports: exports,
