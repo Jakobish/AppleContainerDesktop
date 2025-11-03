@@ -65,6 +65,23 @@ After system started correctly, we can then interact with the images and contain
 ![](./ReadmeAssets/Container/inspectContainer.gif)  
 
 
+### Volumes
+- inspect basic volume information such as container using the volume, size, source, and etc.
+
+![](./ReadmeAssets/Volumes/listVolume.png) 
+
+
+- Create and delete volumes
+
+![](./ReadmeAssets/Volumes/createVolume.png) 
+
+
+- Mount volumes to container
+
+![](./ReadmeAssets/Volumes/specifyVolume.png) 
+
+
+
 ### Others
 
 Set Custom values for 
