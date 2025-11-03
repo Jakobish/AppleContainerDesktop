@@ -112,8 +112,8 @@ Interact with the container system through the menu if needed.
 - Interact with (execute terminal command on) container
 
 ### Others
-- Managing volumes
 - Managing networks
+- Supporting Compose
 
 If there is more you would like to see, please leave me a comment somewhere! Will be happy to know!
 
