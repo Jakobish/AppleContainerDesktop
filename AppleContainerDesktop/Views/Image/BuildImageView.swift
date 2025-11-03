@@ -22,7 +22,6 @@ struct BuildImageView: View {
 
     @SwiftUI.State private var showAdditionalSettings: Bool = false
     
-    
     @SwiftUI.State private var dockerFile: URL?
     @SwiftUI.State private var contextDirectory: URL?
     @SwiftUI.State private var tag: String = ""
@@ -173,7 +172,6 @@ struct BuildImageView: View {
                         })
                         
                     }
-
 
                 }
                 

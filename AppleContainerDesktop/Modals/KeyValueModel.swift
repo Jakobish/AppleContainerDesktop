@@ -18,9 +18,18 @@ struct KeyValueModel: Identifiable {
         return Utility.keyValueString(key: self.key.trimmingCharacters(in: .whitespacesAndNewlines), value: self.value)
     }
     
-    static func envFromContainer(_ container: ClientContainer) -> [KeyValueModel] {
+    static func fromContainerEnv(_ container: ClientContainer) -> [KeyValueModel] {
         let environments = container.configuration.initProcess.environment
         return environments.map({Self.fromString($0)}).filter({$0 != nil}).map({$0!})
+    }
+    
+    static func fromContainerPorts(_ container: ClientContainer) -> [KeyValueModel] {
+        let ports = container.configuration.publishedPorts
+        return ports.map({ port in
+            let host = "\(port.hostAddress):\(port.hostPort)"
+            let container = "\(port.containerPort)[\(port.proto.rawValue.localizedUppercase)]"
+            return KeyValueModel(key: host, value: container)
+        })
     }
     
     static func fromString(_ string: String) -> KeyValueModel? {
@@ -34,7 +43,12 @@ struct KeyValueModel: Identifiable {
         }
         return .init(key: String(parts[0]), value: String(parts[1]))
     }
-
+    
+    static func fromDictionary(_ dict: Dictionary<String, String>) -> [KeyValueModel]  {
+        return dict.map({
+            KeyValueModel(key: $0.0, value: $0.1)
+        })
+    }
 }
 
 

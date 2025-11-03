@@ -22,6 +22,16 @@ extension ClientContainer {
         }
         return self.configuration.publishedPorts.map(\.displayString).joined(separator: "\n")
     }
+    
+    var volumeFSs: [Filesystem] {
+        let fileSystems = self.configuration.mounts
+        let volumes = fileSystems.filter({ $0.isVolume })
+        return volumes
+    }
+    
+    var volumeNames: [String] {
+        let volumeNames = self.volumeFSs.map(\.volumeName).filter({$0 != nil}).map({$0!})
+        return volumeNames
+    }
+
 }
-
-

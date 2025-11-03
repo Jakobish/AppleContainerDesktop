@@ -9,4 +9,11 @@ import Foundation
 
 class Formatter {
     static let byteCountFormatter = ByteCountFormatter()
+    
+    static var dateFormatter: DateFormatter {
+        let formatter = DateFormatter()
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .short
+        return formatter
+    }
 }

@@ -11,6 +11,7 @@ internal import Logging
 enum DisplayCategory: String, Identifiable, Equatable {
     case container
     case image
+    case volume
     
     var displayTitle: String {
         switch self {
@@ -18,6 +19,8 @@ enum DisplayCategory: String, Identifiable, Equatable {
             "Containers"
         case .image:
             "Images"
+        case .volume:
+            "Volumes"
         }
     }
     
@@ -27,6 +30,8 @@ enum DisplayCategory: String, Identifiable, Equatable {
             "cube.fill"
         case .image:
             "cloud.fill"
+        case .volume:
+            "internaldrive.fill"
         }
     }
     
@@ -35,7 +40,7 @@ enum DisplayCategory: String, Identifiable, Equatable {
     }
     
     // for customizing order
-    static let allCases: [DisplayCategory] = [.image, .container]
+    static let allCases: [DisplayCategory] = [.image, .container, .volume]
 }
 
 
@@ -80,9 +85,7 @@ class ApplicationManager {
     
     var selectedCategory: DisplayCategory = .image {
         didSet {
-            if self.selectedCategory != oldValue {
-                self.selectedContainerID = nil
-            }
+            self.selectedContainerID = nil
         }
     }
     

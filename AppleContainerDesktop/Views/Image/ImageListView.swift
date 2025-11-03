@@ -321,7 +321,19 @@ struct ImageListView: View {
                 await self.listImages()
             }
         }, content: { image in
-            InUseContainersView(image: $showInUseContainerForImage)
+            
+            InUseContainersView(containers: image.inUseContainers.map({ContainerDisplayModel($0)}), updateContainer: { id in
+                
+                let container = try await ContainerService.getContainer(id)
+                guard let index = self.showInUseContainerForImage?.inUseContainers.firstIndex(where: {$0.id == id }) else {
+                    return
+                }
+                self.showInUseContainerForImage?.inUseContainers[index] = container
+
+            }, deleteContainer: { id in
+                self.showInUseContainerForImage?.inUseContainers.removeAll(where: {$0.id == id})
+            })
+
         })
         .sheet(isPresented: $showSaveImageView, onDismiss: {
             self.imagesToSave = ""

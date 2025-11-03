@@ -1,17 +1,18 @@
 //
-//  LocalImagePickingView.swift
+//  VolumePickingView.swift
 //  AppleContainerDesktop
 //
-//  Created by Itsuki on 2025/10/03.
+//  Created by Itsuki on 2025/11/03.
 //
+
 
 import SwiftUI
 import ContainerClient
 internal import ContainerizationOCI
 
-struct LocalImagePickingView: View {
-    var images: [ClientImage]
-    var onImageSelect: (String) -> Void
+struct VolumePickingView: View {
+    var volumes: [Volume]
+    var onVolumeSelect: (String) -> Void
     
     @SwiftUI.State private var searchText: String = ""
     
@@ -21,13 +22,12 @@ struct LocalImagePickingView: View {
         self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
     }
     
-    private var filteredImages: [ClientImage] {
+    private var filteredImages: [Volume] {
         if trimmedText.isEmpty {
-            return images
+            return volumes
         }
-        let filtered = self.images.filter({
-            $0.reference.contains(trimmedText) ||
-            $0.description.name.contains(trimmedText)
+        let filtered = self.volumes.filter({
+            $0.name.contains(trimmedText)
         })
         
         return filtered
@@ -38,12 +38,12 @@ struct LocalImagePickingView: View {
             SearchBox(text: $searchText)
             
             List {
-                ForEach(filteredImages, id: \.digest) { image in
+                ForEach(filteredImages, id: \.id) { image in
                     Button(action: {
-                        self.onImageSelect(image.reference)
+                        self.onVolumeSelect(image.name)
                         self.dismiss()
                     }, label: {
-                        Text(image.reference)
+                        Text(image.name)
                             .padding(.vertical, 8)
                             .frame(maxWidth: .infinity, alignment: .leading)
                             .contentShape(Rectangle())

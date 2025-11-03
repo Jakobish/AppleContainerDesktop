@@ -21,6 +21,12 @@ private struct PortsConfiguration: Identifiable {
     }
 }
 
+private struct VolumeConfiguration: Identifiable {
+    let id: UUID = UUID()
+    var name: String = ""
+    var path: String = ""
+}
+
 
 struct CreateContainerView: View {
     
@@ -32,6 +38,7 @@ struct CreateContainerView: View {
     @SwiftUI.State private var process: ContainerProcess = .init()
     
     @SwiftUI.State private var management: ContainerManagement = .init()
+    @SwiftUI.State private var volumes: [VolumeConfiguration] = []
     @SwiftUI.State private var ports: [PortsConfiguration] = []
     @SwiftUI.State private var environments: [KeyValueModel] = []
 
@@ -43,10 +50,14 @@ struct CreateContainerView: View {
     // use a different one then applicationManager.showProgressView to show the progress view over this sheet
     @SwiftUI.State private var showProgressView: Bool = false
 
-    @SwiftUI.State private var showOptionalSettings: Bool = false
+    @SwiftUI.State private var showAdditionalSettings: Bool = false
+    
     @SwiftUI.State private var showPickLocalImage: Bool = false
     @SwiftUI.State private var localImages: [ClientImage] = []
 
+    @SwiftUI.State private var showPickVolume: Bool = false
+    @SwiftUI.State private var availableVolumes: [Volume] = []
+    @SwiftUI.State private var volumeInitialized: Bool = false
 
     var body: some View {
         ScrollView {
@@ -99,14 +110,13 @@ struct CreateContainerView: View {
                 Divider()
                 
                 
-                // TODO: add more optional settings
                 Button(action: {
-                    showOptionalSettings.toggle()
+                    showAdditionalSettings.toggle()
                 }, label: {
                     HStack {
                         Text("Optional Settings")
                         Spacer()
-                        Image(systemName: showOptionalSettings ? "chevron.up" : "chevron.down")
+                        Image(systemName: showAdditionalSettings ? "chevron.up" : "chevron.down")
                             .padding(.trailing, 4)
                     }
                     .font(.headline)
@@ -115,122 +125,8 @@ struct CreateContainerView: View {
                 })
                 .buttonStyle(.plain)
                 
-                if showOptionalSettings {
-                    VStack(alignment: .leading, spacing: 8) {
-                        Text("Container Name")
-                        Text("⭑ If empty, a generated UUID will be used.")
-                            .lineLimit(1)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        TextField(text: $management.name, label: {})
-                    }
-                    
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        
-                        HStack(alignment: .lastTextBaseline) {
-                            Text("Publish Ports")
-                            Text("[Host-port]:[Container-port]")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-
-                        }
-                        
-                        Text("⭑ Anything with port `0` will be removed when creating. \n⭑ Host-ip default to `127.0.0.1`.")
-                            .lineLimit(1)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                        
-
-                        
-                        if ports.isEmpty {
-                            Button(action: {
-                                self.ports.append(.init())
-
-                            }, label: {
-                                Text("Add Ports")
-                                    .padding(.horizontal, 2)
-                            })
-                            .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .blue))
-                        }
-
-                        ForEach($ports, content: { $port in
-                            
-                            HStack {
-
-                                AddableRow(content: {
-                                    TextField("", value: $port.host, format: .number)
-                                    Text(":")
-                                    TextField("", value: $port.container, format: .number)
-
-                                    Picker(selection: $port.publishProtocol, content: {
-                                        Text(PublishProtocol.tcp.rawValue.localizedUppercase)
-                                            .tag(PublishProtocol.tcp)
-                                        Text(PublishProtocol.udp.rawValue.localizedUppercase)
-                                            .tag(PublishProtocol.udp)
-
-                                    }, label: { })
-
-                                }, onAdd: {
-                                    self.ports.append(.init())
-                                }, onDelete: {
-                                    self.ports.removeAll(where: {$0.id == port.id})
-                                })
-                                
-                            }
-
-                        })
-                        
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 8) {
-                        
-                        HStack(alignment: .lastTextBaseline) {
-                            Text("Environment Variables")
-                            Text("key=value")
-                                .font(.subheadline)
-                                .foregroundStyle(.secondary)
-
-                        }
-                        
-                        Text("⭑ Anything with empty key will be removed when creating.")
-                            .lineLimit(1)
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-
-                        
-                        if environments.isEmpty {
-                            Button(action: {
-                                self.environments.append(.init())
-                            }, label: {
-                                Text("Add Env")
-                                    .padding(.horizontal, 2)
-                            })
-                            .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .blue))
-                        }
-
-                        ForEach($environments, content: { $env in
-                            
-                            HStack {
-
-                                AddableRow(content: {
-                                    TextField(text: $env.key, label: {})
-                                    Text("=")
-                                    TextField(text: $env.value, label: {})
-                                }, onAdd: {
-                                    self.environments.append(.init())
-                                }, onDelete: {
-                                    self.environments.removeAll(where: {$0.id == env.id})
-                                })
-                                
-                            }
-
-                        })
-                        
-                    }
-
-
+                if showAdditionalSettings {
+                    self.additionalSettings
                 }
                 
                 
@@ -255,10 +151,39 @@ struct CreateContainerView: View {
                             self.showProgressView = true
                             
                             do {
+                                var validVolumeFSs: [Filesystem] = []
+                                let mountOptions: [String] = []
+                                
+                                for volumeConfig in self.volumes {
+                                    var volume: Volume
+                                    if let first = self.availableVolumes.first(where: {$0.name == volumeConfig.name}) {
+                                        volume = first
+                                    } else {
+                                        var trimmedName = volumeConfig.name.trimmingCharacters(in: .whitespacesAndNewlines)
+                                        var labels: [KeyValueModel] = []
+
+                                        if trimmedName.isEmpty {
+                                            trimmedName = VolumeStorage.generateAnonymousVolumeName()
+                                            labels.append(.init(key: Volume.anonymousLabel))
+                                        }
+                                        
+                                        volume = try await VolumeService.createVolume(name: trimmedName, labels: labels, options: [], size: nil, messageStreamContinuation: self.applicationManager.messageStreamContinuation)
+                                    }
+                                    
+                                    let fs = Filesystem.volume(name: volume.name, format: volume.format, source: volume.source, destination: volumeConfig.path, options: mountOptions)
+                                    
+                                    validVolumeFSs.append(fs)
+                                }
+                                
+                                self.management.volumes = validVolumeFSs
+                                
                                 let validPorts = self.ports.filter({$0.host > 0 && $0.container > 0})
                                 self.management.publishPorts = validPorts.map(\.publishedPort)
+                                
+                                
                                 let validEnvironments = self.environments.filter({!$0.key.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty})
                                 self.process.environments = validEnvironments.map(\.stringRepresentation)
+                                
                                 
                                 try await ContainerService.createContainer(
                                     imageReference: trimmedReference,
@@ -294,15 +219,14 @@ struct CreateContainerView: View {
         }
         .scrollBounceBehavior(.basedOnSize, axes: .vertical)
         .frame(width: 480)
-        .fixedSize(horizontal: false, vertical: !self.showOptionalSettings)
+        .fixedSize(horizontal: false, vertical: !self.showAdditionalSettings)
         .frame(maxHeight: 440)
         .sheet(isPresented: $showProgressView, content: {
             CustomProgressView()
                 .environment(self.applicationManager)
         })
         .sheet(isPresented: $showPickLocalImage, content: {
-//            LocalImagePickingView(images: localImages, imageReference: $imageReference)
-            LocalImagePickingView(images: localImages, onImageSelect: {self.imageReference = $0})
+            LocalImagePickingView(images: self.localImages, onImageSelect: {self.imageReference = $0})
         })
         .animation(.default, value: self.ports.count)
         .animation(.default, value: self.environments.count)
@@ -312,15 +236,191 @@ struct CreateContainerView: View {
         .interactiveDismissDisabled()
 
     }
+    
+    
+    // TODO: add more optional settings
+    @ViewBuilder
+    private var additionalSettings: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Container Name")
+            Text("⭑ If empty, a generated UUID will be used.")
+                .lineLimit(1)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            TextField(text: $management.name, label: {})
+        }
+        
+        
+        VStack(alignment: .leading, spacing: 8) {
+            
+            HStack(alignment: .lastTextBaseline) {
+                Text("Publish Ports")
+                Text("[Host-port]:[Container-port]")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
+            }
+            
+            Text("⭑ Anything with port `0` will be removed when creating. \n⭑ Host-ip default to `127.0.0.1`.")
+                .lineLimit(1)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+            
+            
+            
+            if ports.isEmpty {
+                Button(action: {
+                    self.ports.append(.init())
+                    
+                }, label: {
+                    Text("Add Port")
+                        .padding(.horizontal, 2)
+                })
+                .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .blue))
+            }
+            
+            ForEach($ports, content: { $port in
+                                            
+                AddableRow(content: {
+                    TextField("", value: $port.host, format: .number)
+                    Text(":")
+                    TextField("", value: $port.container, format: .number)
+                    
+                    Picker(selection: $port.publishProtocol, content: {
+                        Text(PublishProtocol.tcp.rawValue.localizedUppercase)
+                            .tag(PublishProtocol.tcp)
+                        Text(PublishProtocol.udp.rawValue.localizedUppercase)
+                            .tag(PublishProtocol.udp)
+                        
+                    }, label: { })
+                    
+                }, onAdd: {
+                    self.ports.append(.init())
+                }, onDelete: {
+                    self.ports.removeAll(where: {$0.id == port.id})
+                })
+                                                
+            })
+            
+        }
+        
+        
+        KeyValuesEditView(keyValues: $environments, title: "Environment Variables")
+        
+        
+        VStack(alignment: .leading, spacing: 8) {
+            
+            HStack(alignment: .lastTextBaseline) {
+                Text("Volumes")
+                Text("Anonymous: /path or Named: <name>:/path")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Text("⭑ If volume name is empty or not found, a new volume will be created.")
+                .lineLimit(1)
+                .font(.subheadline)
+                .foregroundStyle(.secondary)
+
+            
+            if self.volumes.isEmpty {
+                Button(action: {
+                    self.volumes.append(.init())
+
+                }, label: {
+                    Text("Add Volume")
+                        .padding(.horizontal, 2)
+                })
+                .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .blue))
+            }
+
+            ForEach($volumes, content: { $volume in
+
+                AddableRow(content: {
+                    VolumeRow(
+                        volumeName: $volume.name,
+                        path: $volume.path,
+                        showPickVolume: $showPickVolume,
+                        availableVolumes: $availableVolumes,
+                        showAvailableVolume: {
+                            guard !self.volumeInitialized else {
+                                self.showPickVolume = true
+                                return
+                            }
+                            Task {
+                                do {
+                                    self.showProgressView = true
+                                    self.availableVolumes = try await VolumeService.listVolumes()
+                                    self.showProgressView = false
+                                    self.volumeInitialized = true
+                                    self.showPickVolume = true
+                                } catch (let error) {
+                                    self.errorMessage = "\(error)"
+                                }
+                            }
+                    })
+                }, onAdd: {
+                    self.volumes.append(.init())
+                }, onDelete: {
+                    self.volumes.removeAll(where: {$0.id == volume.id})
+                })
+            })
+            
+        }
+    }
 }
 
 
 
+private struct VolumeRow: View {
+    @Binding var volumeName: String
+    @Binding var path: String
+    @Binding var showPickVolume: Bool
+    @Binding var availableVolumes: [Volume]
 
+    var showAvailableVolume: () -> Void
 
+    var body: some View {
+        HStack(spacing: 24) {
+            HStack(spacing: 16) {
+                Text("Name")
+                    .frame(maxHeight: .infinity)
+                
+                TextField(text: $volumeName, prompt: Text(""), label: {})
+                    .frame(maxHeight: .infinity)
+                
+                Button(action: {
+                    self.showAvailableVolume()
+                }, label: {
+                    Image(systemName: "ellipsis")
+                        .padding(.horizontal, 2)
+                        .frame(maxHeight: .infinity)
+                })
+                .buttonStyle(CustomButtonStyle(backgroundShape: .roundedRectangle(4), backgroundColor: .secondary))
+                
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxHeight: .infinity)
 
+            
+            HStack(spacing: 16) {
+                Text("Path")
+                    .frame(maxHeight: .infinity)
 
-//#Preview {
-//    CreateContainerView(imageReference: "", onCreationFinish: {})
-//        .environment(ApplicationManager())
-//}
+                TextField(text: $path, prompt: Text("Ex: /data"), label: {})
+                    .frame(maxHeight: .infinity)
+                
+            }
+            .fixedSize(horizontal: false, vertical: true)
+            .frame(maxHeight: .infinity)
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .sheet(isPresented: $showPickVolume, content: {
+            VolumePickingView(volumes: self.availableVolumes, onVolumeSelect: {
+                self.volumeName = $0
+            })
+        })
+
+    }
+}

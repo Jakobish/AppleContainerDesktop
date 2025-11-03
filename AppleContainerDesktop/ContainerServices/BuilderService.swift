@@ -203,6 +203,4 @@ class BuilderService {
             throw ContainerizationError(.internalError, message: "failed to start BuildKit: \(error)")
         }
     }
-    
-    
 }

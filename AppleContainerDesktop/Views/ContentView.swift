@@ -48,6 +48,8 @@ struct ContentView: View {
                             ContainerListView()
                         case .image:
                             ImageListView()
+                        case .volume:
+                            VolumeListView()
                         }
                     }
                     .environment(self.applicationManager)

@@ -9,7 +9,6 @@ import SwiftUI
 import ContainerClient
 
 
-
 struct ContainerDetailView: View {
     var containerID: ClientContainerID
 
@@ -168,37 +167,18 @@ struct ContainerDetailView: View {
         }
     }
     
-    private func sectionHeader(title: String, subtitle: String) -> some View {
+    private func sectionHeader(title: String, subtitle: String?) -> some View {
         HStack(alignment: .lastTextBaseline) {
             Text(title)
                 .font(.headline)
 
-            Text(subtitle)
-                .font(.subheadline)
-                .foregroundStyle(.secondary)
+            if let subtitle {
+                Text(subtitle)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+            }
         }
 
-    }
-    
-    private func emptyText(_ text: String) -> some View {
-        Text(text)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .foregroundStyle(.secondary)
-            .padding(.horizontal, 16)
-    }
-    
-    private func leftColumn(_ text: String) -> some View {
-        Text(text)
-            .multilineTextAlignment(.leading)
-            .frame(width: self.leftColumnWidth, alignment: .leading)
-            .foregroundStyle(.secondary)
-    }
-    
-    private func rightColumn(_ text: String) -> some View {
-        Text(text)
-            .multilineTextAlignment(.leading)
-            .frame(maxWidth: .infinity, alignment: .leading)
     }
     
     private func controlButtonImage(systemName: String) -> some View {
@@ -212,22 +192,11 @@ struct ContainerDetailView: View {
     @ViewBuilder private func containerInspectView(_ container: ContainerDisplayModel) -> some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 16, content: {
-                let environments = KeyValueModel.envFromContainer(container.container)
+                let environments = KeyValueModel.fromContainerEnv(container.container)
+                let ports = KeyValueModel.fromContainerPorts(container.container)
+                
                 Section {
-                    if environments.isEmpty {
-                        emptyText("No environments added.")
-                    }
-                    
-                    ForEach(environments) { env in
-                        HStack {
-                            leftColumn(env.key)
-                            rightColumn(env.value)
-                        }
-                        .padding(.horizontal, 16)
-                        
-                        Divider()
-                    }
-                    
+                    KeyValuesDisplayView(keyValues: environments, emptyText: "No environments added", leftColumnWidth: self.leftColumnWidth)
                 } header: {
                     sectionHeader(title: "Environment", subtitle: "Key=Value")
                 }
@@ -237,26 +206,61 @@ struct ContainerDetailView: View {
                 
                 
                 Section {
-                    let ports = container.container.configuration.publishedPorts
-                    if ports.isEmpty {
-                        emptyText("No ports added.")
-                    }
-                    
-                    ForEach(0..<ports.count, id: \.self) { index in
-                        HStack {
-                            let port = ports[index]
-                            let host = "\(port.hostAddress):\(port.hostPort)"
-                            let container = "\(port.containerPort)[\(port.proto.rawValue.localizedUppercase)]"
-                            leftColumn(host)
-                            rightColumn(container)
-                        }
-                        .padding(.horizontal, 16)
-                        
-                        Divider()
-                    }
-                    
+                    KeyValuesDisplayView(keyValues: ports, emptyText: "No ports added", leftColumnWidth: self.leftColumnWidth)
                 } header: {
                     sectionHeader(title: "Ports", subtitle: "Host:Container[Protocol]")
+                }
+                
+                
+                Spacer()
+                    .frame(height: 8)
+
+                
+                Section {
+//                    KeyValuesView(keyValues: ports, emptyText: "No ports added")
+                    let volumeFSs = container.container.volumeFSs
+                    if volumeFSs.isEmpty {
+                        Text("No volume binded")
+                            .multilineTextAlignment(.leading)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .foregroundStyle(.secondary)
+                            .padding(.horizontal, 16)
+
+                    }
+                    ForEach(0..<volumeFSs.count, id: \.self) { index in
+                        let fileSystem: Filesystem = volumeFSs[index]
+                        if let name = fileSystem.volumeName {
+                            HStack {
+                                Text(name)
+                                    .lineLimit(1)
+                                    .truncationMode(.middle)
+                                    .frame(width: self.leftColumnWidth, alignment: .leading)
+                                    .foregroundStyle(.secondary)
+                                
+                                let fileURL = URL(filePath: fileSystem.source)
+                                
+                                HStack(spacing: 8) {
+                                    Text("\(fileSystem.source)\(fileSystem.destination)")
+                                        .lineLimit(1)
+                                        .truncationMode(.middle)
+                                        .frame(maxWidth: 240)
+                                
+                                    Button {
+                                        self.openFile(fileURL)
+                                    } label: {
+                                        Image(systemName: "arrow.right")
+                                            .contentShape(Rectangle())
+                                            .fontWeight(.semibold)
+                                    }
+                                    .buttonStyle(.link)
+                                }
+                            }
+                            .padding(.horizontal, 16)
+
+                        }
+                    }
+                } header: {
+                    sectionHeader(title: "Volumes", subtitle: nil)
                 }
             })
             .scrollTargetLayout()
@@ -264,6 +268,14 @@ struct ContainerDetailView: View {
             .padding(.bottom, 16)
         }
     }
+    
+    private func openFile(_ url: URL) {
+        let _ = NSWorkspace.shared.selectFile(
+            url.absolutePath,
+            inFileViewerRootedAtPath: url.parentDirectory.absolutePath
+        )
+    }
+
     
 }
 
